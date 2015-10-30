@@ -1,16 +1,10 @@
 
 import os
 import time
-from Queue import Queue
-import threading
 import logging
+import threading
 from os import path
-
-logging.basicConfig(level=logging.DEBUG,
-                    format='(%(threadName)-10s) %(message)s',
-                   )
-MAX_BUFFER_SIZE = 10
-LOG_QUEUE = Queue()
+from central import MAX_BUFFER_SIZE
 
 def touch(fpath):
     open(fpath, 'a').close()
@@ -19,7 +13,7 @@ class Tail(threading.Thread):
     """This class tails a file continuously and pushes lines into
        a global queue.
     """
-    def __init__(self, filepath, q, stop_event, interval=1, out_file=None):
+    def __init__(self, filepath, q, stop_event, interval=1, out_file=None, name=None):
         threading.Thread.__init__(self)
         self.filepath = filepath
         self.q = q
@@ -33,6 +27,8 @@ class Tail(threading.Thread):
             open(self.out_file, 'w').write('0')
         self.fh = open(self.filepath, 'r')
         self.stop_event = stop_event
+        if name is not None:
+            self.name = name
 
     def run(self):
         while not self.stop_event.is_set():
@@ -42,36 +38,19 @@ class Tail(threading.Thread):
                 if not line:
                     break
                 self.q.put(line)
+                logging.debug('added to queue, size(%d)'%self.q.qsize())
                 self.offset = self.fh.tell()
+                self.flush_offset()
+            else:
+                logging.warn('max buffer reached!')
             time.sleep(self.interval)
         else:
-            with open(self.out_file, 'w') as out_fh:
-                out_fh.write(str(self.offset))
+            self.flush_offset(fsync=True)
             self.fh.close()
 
-class Consumer(threading.Thread):
-    def __init__(self, q, stop_event):
-        threading.Thread.__init__(self)
-        self.q = q
-        self.stop_event = stop_event
-
-    def run(self):
-        while not self.stop_event.is_set():
-            while not self.q.empty():
-                logging.debug(self.q.get().rstrip('\n'))
-                self.q.task_done()
-            time.sleep(2)
-
-STOP_EVENT = threading.Event()
-
-tailer1 = Tail('/var/log/apache2/access_log', LOG_QUEUE, STOP_EVENT)
-tailer2 = Tail('/var/log/apache2/error_log', LOG_QUEUE, STOP_EVENT)
-
-tailer1.start()
-tailer2.start()
-
-consumer = Consumer(LOG_QUEUE, STOP_EVENT)
-consumer.start()
-
-timer = threading.Timer(100, STOP_EVENT.set)
-timer.start()
+    def flush_offset(self, fsync=False):
+        with open(self.out_file, 'w') as out_fh:
+            out_fh.write(str(self.offset))
+            if fsync:
+                out_fh.flush()
+                os.fsync(out_fh.fileno())
