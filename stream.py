@@ -12,13 +12,21 @@ class SocketStreamer(object):
     def __init__(self, host, port):
         self.host = host
         self.port = port
+        self._sock = None
 
     def __enter__(self):
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self._sock.connect((self.host, self.port))
+        except socket.error, e:
+            # do some more handling
+            return -1
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         # TODO: Handle exceptions when streaming within context 
-        pass
+        self._sock.close()
+        self._sock = None
 
     def frame_message(self, msg):
         "return a 2-tuple: (orig message length, framed message)"
@@ -29,14 +37,9 @@ class SocketStreamer(object):
 
     def send(self, msg):
         "block until entire message is sent. return sent bytes."
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            self._sock.connect((self.host, self.port))
-        except socket.error, e:
-            # do some more handling
-            return -1
         _, payload = self.frame_message(msg)
         sent_bytes = 0
+        # return self._sock.send(msg)
         while sent_bytes < len(payload):
             try:
                 sent_bytes += self._sock.send(payload[sent_bytes:])
@@ -48,12 +51,11 @@ class SocketStreamer(object):
                         logging.error("Detected remote disconnect")
                     else:
                         # determine and handle different error
-                        pass
+                        logging.error("unpredicted behavior")
                 else:
                     logging.error("socket error %s" % e)
                 self._sock.close()
                 return -1
-        self._sock.close()
         return sent_bytes
 
 if __name__ == '__main__':

@@ -18,8 +18,8 @@ class Consumer(threading.Thread):
             self.name = name
 
     def run(self):
-        while not self.stop_event.is_set():
-            with SocketStreamer('localhost', 9898) as sock:
+        with SocketStreamer('localhost', 9898) as sock:
+            while not self.stop_event.is_set():
                 while not self.q.empty():
                     log = self.q.get()
                     logging.debug(
@@ -30,7 +30,7 @@ class Consumer(threading.Thread):
                             break
                     self.sent_records += 1
                     self.q.task_done()
-            time.sleep(1)
+                time.sleep(1)
 
 
 # this isn't being called during sys.exit :/
