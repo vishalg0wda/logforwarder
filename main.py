@@ -18,19 +18,30 @@ class Consumer(threading.Thread):
             self.name = name
 
     def run(self):
-        with SocketStreamer('localhost', 9898) as sock:
-            while not self.stop_event.is_set():
-                while not self.q.empty():
-                    log = self.q.get()
-                    logging.debug(
-                        'consumed from queue, size(%d)'%self.q.qsize())
-                    while True:
+        sock = SocketStreamer('localhost', 9898)
+        while sock is None:
+            sock = SocketStreamer('localhost', 9898)
+            time.sleep(1)
+        while not self.stop_event.is_set():
+            while not self.q.empty():
+                log = self.q.get()
+                logging.debug(
+                    'consumed from queue, size(%d)'%self.q.qsize())
+                while True:
+                    try:
                         sent = sock.send(log)
+                    except AttributeError:
+                        time.sleep(1)
+                        sock = SocketStreamer('localhost', 9898)
+                    else:
                         if sent > 0:
                             break
-                    self.sent_records += 1
-                    self.q.task_done()
-                time.sleep(1)
+                        else:
+                            time.sleep(1)
+                    sock = SocketStreamer('localhost', 9898)
+                self.sent_records += 1
+                self.q.task_done()
+            time.sleep(1)
 
 
 # this isn't being called during sys.exit :/
@@ -42,9 +53,9 @@ def event_loop():
     tailer1.start()
     tailer2.start()
     consumer1 = Consumer(LOG_QUEUE, STOP_EVENT, name='optimus')
-    consumer2 = Consumer(LOG_QUEUE, STOP_EVENT, name='megatron')
+    # consumer2 = Consumer(LOG_QUEUE, STOP_EVENT, name='megatron')
     consumer1.start()
-    consumer2.start()
+    # consumer2.start()
     # this part continues to block even though all
     # queue items were processed :/
     # LOG_QUEUE.join() # Commenting for now...
@@ -57,8 +68,8 @@ def event_loop():
             print
             logging.info(
                 '{0.name} sent {0.sent_records} records!'.format(consumer1))
-            logging.info(
-                '{0.name} sent {0.sent_records} records!'.format(consumer2))
+            # logging.info(
+                # '{0.name} sent {0.sent_records} records!'.format(consumer2))
             sys.exit('shutting down streamer...')
 
 if __name__ == '__main__':

@@ -9,24 +9,30 @@ class SocketStreamer(object):
     """This class is responsible for connecting, framing and
        streaming of messages to a remote socket.
     """
+    def __new__(cls, host, port):
+        obj = super(SocketStreamer, cls).__new__(cls)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.connect((host, port))
+        except socket.error, e:
+            # do some more handling
+            logging.error(e)
+            return None
+        else:
+            obj._sock = sock
+            return obj
+
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        self._sock = None
 
-    def __enter__(self):
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def __del__(self):
+        logging.debug('socket is being destroyed')
+        # TODO: Handle exceptions
         try:
-            self._sock.connect((self.host, self.port))
-        except socket.error, e:
-            # do some more handling
-            return -1
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        # TODO: Handle exceptions when streaming within context 
-        self._sock.close()
-        self._sock = None
+            self._sock.close()
+        except:
+            pass
 
     def frame_message(self, msg):
         "return a 2-tuple: (orig message length, framed message)"
@@ -55,6 +61,7 @@ class SocketStreamer(object):
                 else:
                     logging.error("socket error %s" % e)
                 self._sock.close()
+                self._sock = None
                 return -1
         return sent_bytes
 
