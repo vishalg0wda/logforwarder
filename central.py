@@ -7,7 +7,6 @@ logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s',
                    )
 STOP_EVENT = threading.Event()
-LOG_QUEUE = Queue()
 
 # all these should come from config
 MAX_BUFFER_SIZE = 100
@@ -17,3 +16,6 @@ POLL_INTERVAL = 2 # seconds
 LOGGER_HOST = 'localhost'
 LOGGER_PORT = 9898
 TOKEN = 'entergeneratedtokenhere'
+
+LOG_QUEUE = Queue(maxsize=MAX_BUFFER_SIZE)
+NUM_CONSUMERS = 4

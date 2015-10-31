@@ -22,12 +22,12 @@ class Consumer(threading.Thread):
             time.sleep(self.poll_interval)
         while not self.stop_event.is_set():
             while not self.q.empty():
-                log = self.q.get()
+                app, log = self.q.get()
                 logging.debug(
                     'consumed from queue, size(%d)'%self.q.qsize())
                 while True:
                     try:
-                        sent = sock.send(log)
+                        sent = sock.send(log, app=app)
                     except AttributeError:
                         time.sleep(self.poll_interval)
                         sock = SocketStreamer()

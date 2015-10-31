@@ -4,7 +4,7 @@ import time
 import logging
 import threading
 from os import path
-from central import MAX_BUFFER_SIZE
+# from central import MAX_BUFFER_SIZE
 
 def touch(fpath):
     open(fpath, 'a').close()
@@ -33,11 +33,11 @@ class Tail(threading.Thread):
     def run(self):
         while not self.stop_event.is_set():
             self.fh.seek(self.offset)
-            while self.q.qsize() < MAX_BUFFER_SIZE:
+            while True:
                 line = self.fh.readline()
                 if not line:
                     break
-                self.q.put(line)
+                self.q.put((self.name, line,))
                 logging.debug('added to queue, size(%d)'%self.q.qsize())
                 self.offset = self.fh.tell()
                 self.flush_offset()
