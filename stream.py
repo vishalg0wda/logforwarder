@@ -4,12 +4,13 @@ import errno
 import struct
 import socket
 import logging
+from central import LOGGER_HOST, LOGGER_PORT
 
 class SocketStreamer(object):
     """This class is responsible for connecting, framing and
        streaming of messages to a remote socket.
     """
-    def __new__(cls, host, port):
+    def __new__(cls, host=LOGGER_HOST, port=LOGGER_PORT):
         obj = super(SocketStreamer, cls).__new__(cls)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -22,7 +23,7 @@ class SocketStreamer(object):
             obj._sock = sock
             return obj
 
-    def __init__(self, host, port):
+    def __init__(self, host=LOGGER_HOST, port=LOGGER_PORT):
         self.host = host
         self.port = port
 
