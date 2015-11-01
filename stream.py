@@ -5,13 +5,12 @@ import errno
 import struct
 import socket
 import logging
-from central import LOGGER_HOST, LOGGER_PORT, TOKEN
 
 class SocketStreamer(object):
     """This class is responsible for connecting, framing and
        streaming of messages to a remote socket.
     """
-    def __new__(cls, host=LOGGER_HOST, port=LOGGER_PORT):
+    def __new__(cls, host, port, token):
         obj = super(SocketStreamer, cls).__new__(cls)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -24,7 +23,7 @@ class SocketStreamer(object):
             obj._sock = sock
             return obj
 
-    def __init__(self, host=LOGGER_HOST, port=LOGGER_PORT, token=TOKEN):
+    def __init__(self, host, port, token):
         self.host = host
         self.port = port
         self.token = token
@@ -37,11 +36,10 @@ class SocketStreamer(object):
         except:
             pass
 
-    def frame_message(self, msg, **kwargs):
+    def frame_message(self, entry):
         """return a 2-tuple: (orig message length, framed message)
         """
-        payload = kwargs.copy()
-        payload['data'] = msg
+        payload = entry.copy()
         payload['token'] = self.token
         payload = json.dumps(payload)
         msg_len = len(payload)
@@ -49,11 +47,11 @@ class SocketStreamer(object):
         payload = '{len}{msg}'.format(len=bin_msg_len, msg=payload)
         return (msg_len, payload)
 
-    def send(self, msg, **kwargs):
+    def send(self, entry):
         """block until entire message is sent. return sent bytes.
            return -1 if error.
         """
-        _, payload = self.frame_message(msg, **kwargs)
+        _, payload = self.frame_message(entry)
         sent_bytes = 0
         # return self._sock.send(msg)
         while sent_bytes < len(payload):
@@ -76,7 +74,7 @@ class SocketStreamer(object):
         return sent_bytes
 
 if __name__ == '__main__':
-    with SocketStreamer('localhost', 9898) as sock:
+    with SocketStreamer('localhost', 9898, 'randomtoken') as sock:
         for line in sys.stdin:
             print sock.send(line)
         # sock.send("today was a good day! indeed it was!")

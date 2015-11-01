@@ -1,0 +1,15 @@
+{
+    "logger_host": "localhost",
+    "logger_port": 9898,
+    "token": "thisisarandomlygeneratedtoken",
+    "poll_interval": 2.0,
+    "num_consumers": 4,
+    "files": [
+    {
+        "paths": [
+        "/var/log/apache2/access_log",
+        "/var/log/apache2/error_log"
+        ]
+    }
+    ]
+}

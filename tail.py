@@ -4,31 +4,37 @@ import time
 import logging
 import threading
 from os import path
-# from central import MAX_BUFFER_SIZE
 
-def touch(fpath):
+OFFSETS_DIR = path.abspath('offsets')
+if not path.exists(OFFSETS_DIR):
+    os.makedirs(OFFSETS_DIR)
+
+def get_offset_file(fpath):
+    "provide path to offset file"
+    name = path.basename(fpath)
+    fpath = path.join(OFFSETS_DIR, '%s.offset'%name)
+    # touch the file
     open(fpath, 'a').close()
+    return fpath
 
 class Tail(threading.Thread):
     """This class tails a file continuously and pushes lines into
        a global queue.
     """
-    def __init__(self, filepath, q, stop_event, interval=1, out_file=None, name=None):
+    def __init__(self, filepath, q, stop_event, fields, interval):
         threading.Thread.__init__(self)
         self.filepath = filepath
         self.q = q
         self.interval = interval
-        self.out_file = out_file or '%s.offset' % path.basename(filepath)
-        touch(self.out_file)
+        self.offset_file = get_offset_file(filepath)
         self.offset = 0
         try:
-            self.offset = int(open(self.out_file).read().strip())
+            self.offset = int(open(self.offset_file).read().strip())
         except ValueError:
-            open(self.out_file, 'w').write('0')
+            open(self.offset_file, 'w').write('0')
         self.fh = open(self.filepath, 'r')
         self.stop_event = stop_event
-        if name is not None:
-            self.name = name
+        self.fields = fields
 
     def run(self):
         while not self.stop_event.is_set():
@@ -37,7 +43,9 @@ class Tail(threading.Thread):
                 line = self.fh.readline()
                 if not line:
                     break
-                self.q.put((self.name, line,))
+                entry = self.fields.copy()
+                entry['data'] = line
+                self.q.put(entry)
                 logging.debug('added to queue, size(%d)'%self.q.qsize())
                 self.offset = self.fh.tell()
                 self.flush_offset()
@@ -49,8 +57,8 @@ class Tail(threading.Thread):
             self.fh.close()
 
     def flush_offset(self, fsync=False):
-        with open(self.out_file, 'w') as out_fh:
-            out_fh.write(str(self.offset))
+        with open(self.offset_file, 'w') as off_fh:
+            off_fh.write(str(self.offset))
             if fsync:
-                out_fh.flush()
-                os.fsync(out_fh.fileno())
+                off_fh.flush()
+                os.fsync(off_fh.fileno())
