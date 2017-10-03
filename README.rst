@@ -5,7 +5,7 @@ files
 
 Configuration:
 --------------
-Options can be configured in config.json
+Options can be configured in config.json (probably)
 
 Usage:
 ------
